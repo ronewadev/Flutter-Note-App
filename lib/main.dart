@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:my_app/Screens/loginScreen.dart';
-import 'package:my_app/Screens/notesScreen.dart';
-import 'package:my_app/Screens/registrationScreen.dart';
+import 'package:my_app/Screens/Auth/loginScreen.dart';
+import 'package:my_app/Screens/NotesScreen/notesScreen.dart';
+import 'package:my_app/Screens/Auth/registrationScreen.dart';
 import 'package:my_app/util/theme.dart';
 
 void main() {
