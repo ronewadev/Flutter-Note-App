@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:math';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'NotesFunctions.dart';
+import '../util/theme.dart';
 
 class NotesPage extends StatefulWidget {
   @override
@@ -14,6 +15,7 @@ class _NotesPageState extends State<NotesPage> with TickerProviderStateMixin {
   List<Map<String, String>> notes = [];
   List<Map<String, String>> deletedNotes = [];
   bool isDarkMode = false;
+  final NotesFunctions notesFunctions = NotesFunctions();
 
   @override
   void initState() {
@@ -24,50 +26,36 @@ class _NotesPageState extends State<NotesPage> with TickerProviderStateMixin {
   }
 
   _loadUserName() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? loadedUsername = await notesFunctions.loadUserName();
     setState(() {
-      username = prefs.getString('username');
+      username = loadedUsername;
     });
   }
 
   _loadNotes() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
+    List<Map<String, String>> loadedNotes = await notesFunctions.loadNotes();
+    List<Map<String, String>> loadedDeletedNotes = await notesFunctions.loadDeletedNotes();
     setState(() {
-      notes = (prefs.getStringList('notes') ?? []).map((note) {
-        List<String> splitNote = note.split('||');
-        return {'title': splitNote[0], 'content': splitNote[1]};
-      }).toList();
-      deletedNotes = (prefs.getStringList('deletedNotes') ?? []).map((note) {
-        List<String> splitNote = note.split('||');
-        return {'title': splitNote[0], 'content': splitNote[1]};
-      }).toList();
+      notes = loadedNotes;
+      deletedNotes = loadedDeletedNotes;
     });
   }
 
   _saveNotes() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    prefs.setStringList(
-        'notes', notes.map((note) => '${note['title']}||${note['content']}').toList());
-    prefs.setStringList('deletedNotes',
-        deletedNotes.map((note) => '${note['title']}||${note['content']}').toList());
+    await notesFunctions.saveNotes(notes, deletedNotes);
   }
 
   _loadTheme() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
+    bool loadedTheme = await notesFunctions.loadTheme();
     setState(() {
-      isDarkMode = prefs.getBool('isDarkMode') ?? false;
+      isDarkMode = loadedTheme;
     });
-  }
-
-  _saveTheme(bool value) async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    prefs.setBool('isDarkMode', value);
   }
 
   _toggleTheme() {
     setState(() {
       isDarkMode = !isDarkMode;
-      _saveTheme(isDarkMode);
+      notesFunctions.saveTheme(isDarkMode);
     });
   }
 
@@ -194,32 +182,11 @@ class _NotesPageState extends State<NotesPage> with TickerProviderStateMixin {
     Navigator.pushReplacementNamed(context, '/login');
   }
 
-  LinearGradient _getRandomGradientColor() {
-    final random = Random();
-    Color color1 = Color.fromARGB(
-      255,
-      random.nextInt(256),
-      random.nextInt(256),
-      random.nextInt(256),
-    );
-    Color color2 = Color.fromARGB(
-      255,
-      random.nextInt(256),
-      random.nextInt(256),
-      random.nextInt(256),
-    );
-    return LinearGradient(
-      colors: [color1, color2],
-      begin: Alignment.topLeft,
-      end: Alignment.bottomRight,
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      theme: isDarkMode ? ThemeData.dark() : ThemeData.light(),
+      theme: isDarkMode ? darkTheme : lightTheme,
       home: Scaffold(
         appBar: AppBar(
           title: Text('Hyperion Note'),
@@ -229,7 +196,7 @@ class _NotesPageState extends State<NotesPage> with TickerProviderStateMixin {
               onPressed: _toggleTheme,
             ),
             IconButton(
-              icon: Icon(Icons.delete_forever_rounded),
+              icon: Icon(Icons.delete_forever),
               onPressed: () {
                 showDialog(
                   context: context,
@@ -249,7 +216,7 @@ class _NotesPageState extends State<NotesPage> with TickerProviderStateMixin {
                                   child: ListTile(
                                     title: Text(note['title']!, style: TextStyle(fontWeight: FontWeight.bold)),
                                     subtitle: Text(
-                                      _getFormattedContent(note['content']!),
+                                      notesFunctions.getFormattedContent(note['content']!),
                                       style: TextStyle(color: Colors.grey[700]),
                                     ),
                                     trailing: IconButton(
@@ -350,24 +317,33 @@ class _NotesPageState extends State<NotesPage> with TickerProviderStateMixin {
                               child: Container(
                                 padding: EdgeInsets.all(16.0),
                                 decoration: BoxDecoration(
-                                  border: Border.all(
-                                    color: _getRandomGradientColor().colors[0],
-                                    width: 5,
-                                  ),
+                                  color: isDarkMode ? Colors.grey[850] : Colors.white,
                                   borderRadius: BorderRadius.circular(15),
                                   boxShadow: [
                                     BoxShadow(
                                       color: Colors.black.withOpacity(0.1),
-                                      blurRadius: 2,
-                                      offset: Offset(4, 6),
+                                      blurRadius: 4,
+                                      offset: Offset(2, 4),
                                     ),
                                   ],
+                                  border: Border.all(
+                                    color: notesFunctions.getRandomGradientColor().colors[0],
+                                    width: 5,
+                                  ),
                                 ),
                                 child: Column(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Container(
+                                      decoration: BoxDecoration(
+                                        border: Border(
+                                          bottom: BorderSide(
+                                            color: notesFunctions.getRandomGradientColor().colors[0],
+                                            width: 4,
+                                          ),
+                                        ),
+                                      ),
                                       child: Text(
                                         notes[index]['title'] ?? '',
                                         style: TextStyle(
@@ -380,7 +356,7 @@ class _NotesPageState extends State<NotesPage> with TickerProviderStateMixin {
                                     Expanded(
                                       child: SingleChildScrollView(
                                         child: Text(
-                                          _getFormattedContent(notes[index]['content']!),
+                                          notesFunctions.getFormattedContent(notes[index]['content']!),
                                           style: TextStyle(fontSize: 14),
                                         ),
                                       ),
@@ -391,11 +367,11 @@ class _NotesPageState extends State<NotesPage> with TickerProviderStateMixin {
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
                                           IconButton(
-                                            icon: Icon(Icons.edit_rounded, size: 20).animate().rotate(),
+                                            icon: FaIcon(FontAwesomeIcons.edit, size: 20).animate().rotate(),
                                             onPressed: () => _addOrUpdateNote(index: index),
                                           ),
                                           IconButton(
-                                            icon: Icon(Icons.delete_rounded, size: 20).animate().shake(),
+                                            icon: FaIcon(FontAwesomeIcons.trashAlt, size: 20).animate().shake(),
                                             onPressed: () => _deleteNote(index),
                                           ),
                                         ],
@@ -418,13 +394,5 @@ class _NotesPageState extends State<NotesPage> with TickerProviderStateMixin {
         ),
       ),
     );
-  }
-
-  String _getFormattedContent(String content) {
-    if (content.length <= 150) {
-      return content;
-    } else {
-      return content.substring(0, 150) + '...';
-    }
   }
 }
